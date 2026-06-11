@@ -51,5 +51,11 @@ export const POST = conSesion(async (request, contexto, usuario) => {
     await ejecutar('INSERT INTO alquiler_items (alquiler_id, tipo, cantidad, precio_dia) VALUES (?, ?, ?, ?)',
       alqId, it.tipo, it.cantidad, it.prestamo ? 0 : precios[it.tipo]);
   }
+  // Abono entregado al momento de llevarse las piezas (opcional)
+  const abono = Math.round(Number(c.abono) * 100) || 0;
+  if (abono > 0) {
+    await ejecutar('INSERT INTO pagos (alquiler_id, monto, fecha, nota, usuario_id) VALUES (?, ?, ?, ?, ?)',
+      alqId, abono, fecha, 'Abono inicial', usuario.id);
+  }
   return Response.json({ id: alqId }, { status: 201 });
 });

@@ -98,7 +98,7 @@ export default function Alquiler({ id }) {
           </div>
           <div className="text-right">
             <div className="text-xs text-slate-400 font-medium mb-0.5">
-              {alq.saldo > 0 ? 'DEBE' : alq.saldo < 0 ? 'SALDO A FAVOR' : 'SALDADO'}
+              {alq.saldo > 0 ? 'DEBE' : alq.saldo < 0 ? (cerrado ? 'VUELTO AL CLIENTE' : 'SALDO A FAVOR') : 'SALDADO'}
             </div>
             <Saldo valor={alq.saldo} grande />
           </div>
@@ -279,6 +279,12 @@ export default function Alquiler({ id }) {
             Puedes cerrar igual y registrar el pago después, o aplicar un descuento antes.
           </p>
         )}
+        {alq.saldo < 0 && (
+          <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mb-3">
+            El cliente tiene <strong>{dinero(-alq.saldo)}</strong> a su favor (pagó de más).
+            Al cerrar, la app te dirá el vuelto exacto a entregar.
+          </p>
+        )}
         <Campo etiqueta="Fecha de cierre">
           <Entrada type="date" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })} />
         </Campo>
@@ -290,7 +296,8 @@ export default function Alquiler({ id }) {
         )}
         <p className="text-xs text-slate-400 mt-2">Al cerrar se marca la garantía como devuelta al cliente.</p>
         <Boton className="w-full mt-3" cargando={guardando}
-          onClick={() => ejecutar('cerrar', { fecha: form.fecha, cobrar_ultimo_dia: form.cobrar_ultimo_dia }, 'Alquiler cerrado ✔')}>
+          onClick={() => ejecutar('cerrar', { fecha: form.fecha, cobrar_ultimo_dia: form.cobrar_ultimo_dia }, 'Alquiler cerrado ✔',
+            r => { if (r.vuelto > 0) window.alert(`💵 Dar de vuelto al cliente: ${dinero(r.vuelto)}`); })}>
           Cerrar alquiler
         </Boton>
       </Modal>

@@ -24,6 +24,7 @@ export default function NuevoAlquiler() {
   const [cobrarPrimerDia, setCobrarPrimerDia] = useState(true);
   const [garantia, setGarantia] = useState('Cédula');
   const [direccionObra, setDireccionObra] = useState('');
+  const [abono, setAbono] = useState('');
   const [notas, setNotas] = useState('');
   const [guardando, setGuardando] = useState(false);
 
@@ -54,7 +55,7 @@ export default function NuevoAlquiler() {
     try {
       const cuerpo = {
         items, fecha_inicio: fecha, cobra_sabado: cobraSabado, cobrar_primer_dia: cobrarPrimerDia,
-        garantia, notas, direccion_obra: direccionObra,
+        garantia, notas, direccion_obra: direccionObra, abono: Number(abono) || 0,
         ...(modoCliente === 'existente' ? { cliente_id: clienteId } : { cliente: nuevoCliente })
       };
       const r = await api('/alquileres', { method: 'POST', body: cuerpo });
@@ -173,6 +174,11 @@ export default function NuevoAlquiler() {
         <Campo etiqueta="Dirección de la obra" ayuda="Dónde se llevan los andamios (puede ser distinta a la dirección del cliente).">
           <Entrada value={direccionObra} onChange={e => setDireccionObra(e.target.value)}
             placeholder="Ej: calle, barrio, referencia…" />
+        </Campo>
+        <Campo etiqueta="Abono inicial en dólares (opcional)"
+          ayuda="Si el cliente deja dinero adelantado. Queda registrado como pago y al cerrar se descuenta (la app avisa si toca dar vuelto).">
+          <Entrada type="number" min="0" step="0.01" inputMode="decimal" placeholder="0.00"
+            value={abono} onChange={e => setAbono(e.target.value)} />
         </Campo>
         <Interruptor marcado={cobrarPrimerDia} onChange={setCobrarPrimerDia}
           etiqueta="Cobrar el día en que se llevan las piezas"

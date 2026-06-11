@@ -1,6 +1,6 @@
 import { una, todas, ejecutar } from '../../../../../lib/db.js';
 import { conSesion } from '../../../../../lib/auth.js';
-import { hoyLocal } from '../../../../../lib/calculos.js';
+import { hoyLocal, calcularAlquiler } from '../../../../../lib/calculos.js';
 
 export const POST = conSesion(async (request, contexto, usuario) => {
   const { id } = await contexto.params;
@@ -20,5 +20,8 @@ export const POST = conSesion(async (request, contexto, usuario) => {
   }
   await ejecutar(`UPDATE alquileres SET estado = 'cerrado', fecha_cierre = ?, garantia_devuelta = 1, cerrado_por = ? WHERE id = ?`,
     fecha, usuario.id, alq.id);
-  return Response.json({ ok: true });
+  // Cuenta final: si el cliente pagó de más (ej: dejó un abono grande),
+  // se informa cuánto toca darle de vuelto
+  const calc = await calcularAlquiler({ ...alq, estado: 'cerrado', fecha_cierre: fecha }, fecha);
+  return Response.json({ ok: true, saldo: calc.saldo, vuelto: calc.saldo < 0 ? -calc.saldo : 0 });
 });
