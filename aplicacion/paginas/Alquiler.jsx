@@ -61,6 +61,9 @@ export default function Alquiler({ id }) {
               Desde el <strong>{fechaCorta(alq.fecha_inicio)}</strong>
               {cerrado && <> hasta el <strong>{fechaCorta(alq.fecha_cierre)}</strong></>}
             </p>
+            {alq.direccion_obra && (
+              <p className="text-sm text-slate-500 mt-1">📍 Obra: {alq.direccion_obra}</p>
+            )}
             <div className="flex gap-1.5 mt-2 flex-wrap">
               {cerrado ? <Insignia>Cerrado</Insignia> : <Insignia color="azul">Activo</Insignia>}
               {!alq.cobra_sabado && <Insignia color="ambar">No se cobran sábados</Insignia>}

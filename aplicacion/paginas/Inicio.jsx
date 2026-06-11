@@ -64,6 +64,9 @@ export default function Inicio() {
                         {a.items.map(i => `${i.pendientes}${i.pendientes !== i.cantidad ? ` de ${i.cantidad}` : ''} ${nombreTipo(i.tipo, i.cantidad)}`).join(' · ')}
                         {' — desde el '}{fechaCorta(a.fecha_inicio)}
                       </div>
+                      {a.direccion_obra && (
+                        <div className="text-xs text-slate-400 mt-0.5 truncate">📍 {a.direccion_obra}</div>
+                      )}
                       {a.pagado > 0 && (
                         <div className="text-[11px] text-slate-400 mt-0.5">
                           Cargo {dinero(a.cargo_total)} · pagado {dinero(a.pagado)}

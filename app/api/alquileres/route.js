@@ -42,9 +42,9 @@ export const POST = conSesion(async (request, contexto, usuario) => {
   if (!items.length) return Response.json({ error: 'Agrega al menos un andamio o tablón' }, { status: 400 });
 
   const fecha = c.fecha_inicio || hoyLocal();
-  const r = await ejecutar(`INSERT INTO alquileres (cliente_id, fecha_inicio, cobra_sabado, garantia, notas, creado_por)
-    VALUES (?, ?, ?, ?, ?, ?)`,
-    clienteId, fecha, c.cobra_sabado === false ? 0 : 1, c.garantia || '', c.notas || '', usuario.id);
+  const r = await ejecutar(`INSERT INTO alquileres (cliente_id, fecha_inicio, cobra_sabado, garantia, direccion_obra, notas, creado_por)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    clienteId, fecha, c.cobra_sabado === false ? 0 : 1, c.garantia || '', c.direccion_obra || '', c.notas || '', usuario.id);
   const alqId = r.lastInsertRowid;
   for (const it of items) {
     await ejecutar('INSERT INTO alquiler_items (alquiler_id, tipo, cantidad, precio_dia) VALUES (?, ?, ?, ?)',

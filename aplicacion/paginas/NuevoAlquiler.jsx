@@ -22,6 +22,7 @@ export default function NuevoAlquiler() {
   const [fecha, setFecha] = useState(hoyISO());
   const [cobraSabado, setCobraSabado] = useState(true);
   const [garantia, setGarantia] = useState('Cédula');
+  const [direccionObra, setDireccionObra] = useState('');
   const [notas, setNotas] = useState('');
   const [guardando, setGuardando] = useState(false);
 
@@ -52,6 +53,7 @@ export default function NuevoAlquiler() {
     try {
       const cuerpo = {
         items, fecha_inicio: fecha, cobra_sabado: cobraSabado, garantia, notas,
+        direccion_obra: direccionObra,
         ...(modoCliente === 'existente' ? { cliente_id: clienteId } : { cliente: nuevoCliente })
       };
       const r = await api('/alquileres', { method: 'POST', body: cuerpo });
@@ -167,6 +169,10 @@ export default function NuevoAlquiler() {
             <Entrada value={garantia} onChange={e => setGarantia(e.target.value)} />
           </Campo>
         </div>
+        <Campo etiqueta="Dirección de la obra" ayuda="Dónde se llevan los andamios (puede ser distinta a la dirección del cliente).">
+          <Entrada value={direccionObra} onChange={e => setDireccionObra(e.target.value)}
+            placeholder="Ej: calle, barrio, referencia…" />
+        </Campo>
         <Interruptor marcado={cobraSabado} onChange={setCobraSabado}
           etiqueta="Cobrar los sábados"
           descripcion="Los domingos nunca se cobran. Apaga esto si acordaron no cobrar sábados." />
