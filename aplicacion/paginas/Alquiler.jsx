@@ -138,6 +138,7 @@ export default function Alquiler({ id }) {
                   {it.devoluciones.map(d => (
                     <li key={d.id}>
                       ↩ {d.cantidad} {nombreTipo(it.tipo, d.cantidad)} el {fechaCorta(d.fecha)} — {d.dias} día{d.dias !== 1 && 's'}
+                      {d.cobrar_hasta && ` (cobrado hasta el ${fechaCorta(d.cobrar_hasta)})`}
                       {!d.cobrar_ultimo_dia && ' (sin cobrar el último día)'}
                       {it.precio_dia > 0 && <> = {dinero(d.subtotal)}</>}
                       {d.usuario_nombre && <span className="text-slate-300"> · {d.usuario_nombre}</span>}
@@ -214,17 +215,23 @@ export default function Alquiler({ id }) {
               <Entrada type="number" min="1" max={form.item.pendientes} inputMode="numeric"
                 value={form.cantidad} onChange={e => setForm({ ...form, cantidad: e.target.value })} />
             </Campo>
-            <Campo etiqueta="Fecha de devolución">
+            <Campo etiqueta="Fecha de devolución" ayuda="El día en que entregó las piezas: así queda en el registro.">
               <Entrada type="date" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })} />
+            </Campo>
+            <Campo etiqueta="Cobrar solo hasta"
+              ayuda="Normalmente es el mismo día. Cámbialo si acordaron cobrar hasta antes (ej: entregó el martes pero se cobra hasta el lunes).">
+              <Entrada type="date" value={form.cobrar_hasta || form.fecha}
+                onChange={e => setForm({ ...form, cobrar_hasta: e.target.value })} />
             </Campo>
             <Interruptor marcado={form.cobrar_ultimo_dia}
               onChange={v => setForm({ ...form, cobrar_ultimo_dia: v })}
-              etiqueta="Cobrar el día de la devolución"
-              descripcion="Apágalo si por la hora u otro motivo no se cobra este día." />
+              etiqueta="Cobrar el último día"
+              descripcion="Apágalo si por la hora u otro motivo el último día cobrado no se cuenta." />
             <Boton className="w-full mt-3" cargando={guardando}
               onClick={() => ejecutar('devolucion', {
                 item_id: form.item.id, cantidad: Number(form.cantidad),
-                fecha: form.fecha, cobrar_ultimo_dia: form.cobrar_ultimo_dia
+                fecha: form.fecha, cobrar_hasta: form.cobrar_hasta || '',
+                cobrar_ultimo_dia: form.cobrar_ultimo_dia
               }, 'Devolución registrada ✔')}>
               Registrar devolución
             </Boton>
@@ -285,18 +292,28 @@ export default function Alquiler({ id }) {
             Al cerrar, la app te dirá el vuelto exacto a entregar.
           </p>
         )}
-        <Campo etiqueta="Fecha de cierre">
+        <Campo etiqueta="Fecha de cierre" ayuda="El día en que entregó las piezas: así queda en el registro.">
           <Entrada type="date" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })} />
         </Campo>
         {hayPendientes && (
-          <Interruptor marcado={form.cobrar_ultimo_dia}
-            onChange={v => setForm({ ...form, cobrar_ultimo_dia: v })}
-            etiqueta="Cobrar el último día"
-            descripcion="Aplica a las piezas que se devuelven hoy con el cierre." />
+          <>
+            <Campo etiqueta="Cobrar solo hasta"
+              ayuda="Normalmente es el mismo día. Cámbialo si acordaron cobrar hasta antes (ej: entregó el martes pero se cobra hasta el lunes).">
+              <Entrada type="date" value={form.cobrar_hasta || form.fecha}
+                onChange={e => setForm({ ...form, cobrar_hasta: e.target.value })} />
+            </Campo>
+            <Interruptor marcado={form.cobrar_ultimo_dia}
+              onChange={v => setForm({ ...form, cobrar_ultimo_dia: v })}
+              etiqueta="Cobrar el último día"
+              descripcion="Aplica a las piezas que se devuelven con el cierre." />
+          </>
         )}
         <p className="text-xs text-slate-400 mt-2">Al cerrar se marca la garantía como devuelta al cliente.</p>
         <Boton className="w-full mt-3" cargando={guardando}
-          onClick={() => ejecutar('cerrar', { fecha: form.fecha, cobrar_ultimo_dia: form.cobrar_ultimo_dia }, 'Alquiler cerrado ✔',
+          onClick={() => ejecutar('cerrar', {
+            fecha: form.fecha, cobrar_hasta: form.cobrar_hasta || '',
+            cobrar_ultimo_dia: form.cobrar_ultimo_dia
+          }, 'Alquiler cerrado ✔',
             r => { if (r.vuelto > 0) window.alert(`💵 Dar de vuelto al cliente: ${dinero(r.vuelto)}`); })}>
           Cerrar alquiler
         </Boton>

@@ -9,13 +9,19 @@ export const POST = conSesion(async (request, contexto, usuario) => {
   if (alq.estado === 'cerrado') return Response.json({ error: 'Ya está cerrado' }, { status: 400 });
   const c = await request.json();
   const fecha = c.fecha || hoyLocal();
+  // Si acordaron cobrar solo hasta una fecha anterior a la entrega real
+  const cobrarHasta = (c.cobrar_hasta && c.cobrar_hasta !== fecha) ? c.cobrar_hasta : null;
+  if (cobrarHasta) {
+    if (cobrarHasta > fecha) return Response.json({ error: '"Cobrar hasta" no puede ser después del día del cierre' }, { status: 400 });
+    if (cobrarHasta < alq.fecha_inicio) return Response.json({ error: '"Cobrar hasta" no puede ser antes del inicio' }, { status: 400 });
+  }
   // Lo que quede pendiente se devuelve automáticamente con la fecha de cierre
   const items = await todas('SELECT * FROM alquiler_items WHERE alquiler_id = ?', alq.id);
   for (const it of items) {
     const dev = (await una('SELECT COALESCE(SUM(cantidad), 0) AS s FROM devoluciones WHERE item_id = ?', it.id)).s;
     if (it.cantidad - dev > 0) {
-      await ejecutar('INSERT INTO devoluciones (item_id, cantidad, fecha, cobrar_ultimo_dia, usuario_id) VALUES (?, ?, ?, ?, ?)',
-        it.id, it.cantidad - dev, fecha, c.cobrar_ultimo_dia === false ? 0 : 1, usuario.id);
+      await ejecutar('INSERT INTO devoluciones (item_id, cantidad, fecha, cobrar_hasta, cobrar_ultimo_dia, usuario_id) VALUES (?, ?, ?, ?, ?, ?)',
+        it.id, it.cantidad - dev, fecha, cobrarHasta, c.cobrar_ultimo_dia === false ? 0 : 1, usuario.id);
     }
   }
   await ejecutar(`UPDATE alquileres SET estado = 'cerrado', fecha_cierre = ?, garantia_devuelta = 1, cerrado_por = ? WHERE id = ?`,
