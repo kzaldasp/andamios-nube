@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { UserPlus, ChevronRight, Pencil } from 'lucide-react';
 import { api, fechaCorta, navegar } from '../api.js';
+import { useBusquedaClientes } from '../hooks.js';
 import {
   Tarjeta, TituloSeccion, Boton, Campo, Entrada, AreaTexto, Modal,
   Cargando, Vacio, Insignia, Saldo, useAviso
@@ -29,19 +30,13 @@ function FormularioCliente({ inicial, onGuardar, guardando }) {
 
 export function Clientes() {
   const aviso = useAviso();
-  const [clientes, setClientes] = useState(null);
-  const [busqueda, setBusqueda] = useState('');
+  const { busqueda, setBusqueda, resultado } = useBusquedaClientes(100);
   const [creando, setCreando] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
-  const cargar = () => api('/clientes').then(setClientes);
-  useEffect(() => { cargar(); }, []);
+  if (!resultado) return <Cargando />;
 
-  if (!clientes) return <Cargando />;
-
-  const filtrados = busqueda.trim()
-    ? clientes.filter(c => (c.nombre + ' ' + c.cedula + ' ' + c.telefono).toLowerCase().includes(busqueda.trim().toLowerCase()))
-    : clientes;
+  const filtrados = resultado.clientes;
 
   const crear = async (datos) => {
     setGuardando(true);
@@ -60,11 +55,16 @@ export function Clientes() {
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-slate-800">Clientes ({clientes.length})</h1>
+        <h1 className="text-lg font-bold text-slate-800">Clientes ({resultado.total})</h1>
         <Boton onClick={() => setCreando(true)}><UserPlus size={16} /> Nuevo</Boton>
       </div>
       <Entrada placeholder="Buscar por nombre, cédula o teléfono…" value={busqueda}
         onChange={e => setBusqueda(e.target.value)} />
+      {resultado.total > filtrados.length && (
+        <p className="text-xs text-slate-400 -mt-2">
+          Mostrando los primeros {filtrados.length}. Usa el buscador para encontrar el resto.
+        </p>
+      )}
 
       {filtrados.length === 0 ? (
         <Tarjeta><Vacio>No hay clientes{busqueda && ' con esa búsqueda'}.</Vacio></Tarjeta>

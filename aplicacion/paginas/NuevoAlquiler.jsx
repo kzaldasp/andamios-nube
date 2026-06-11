@@ -2,16 +2,16 @@
 import { useEffect, useState } from 'react';
 import { UserPlus, Search } from 'lucide-react';
 import { api, hoyISO, navegar } from '../api.js';
+import { useBusquedaClientes } from '../hooks.js';
 import { Tarjeta, TituloSeccion, Boton, Campo, Entrada, AreaTexto, Interruptor, useAviso, CLASE_INPUT } from '../ui.jsx';
 
 export default function NuevoAlquiler() {
   const aviso = useAviso();
   const [config, setConfig] = useState(null);
-  const [clientes, setClientes] = useState([]);
+  const { busqueda, setBusqueda, resultado } = useBusquedaClientes(20);
 
   const [modoCliente, setModoCliente] = useState('existente'); // existente | nuevo
-  const [busqueda, setBusqueda] = useState('');
-  const [clienteId, setClienteId] = useState(null);
+  const [clienteSel, setClienteSel] = useState(null); // cliente elegido (objeto)
   const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', cedula: '', telefono: '', direccion: '' });
 
   const [andamios, setAndamios] = useState('');
@@ -28,27 +28,22 @@ export default function NuevoAlquiler() {
   const [notas, setNotas] = useState('');
   const [guardando, setGuardando] = useState(false);
 
+  useEffect(() => { api('/config').then(setConfig); }, []);
+
+  // Si todavía no hay ningún cliente registrado, ir directo al formulario
   useEffect(() => {
-    api('/config').then(setConfig);
-    api('/clientes').then(c => {
-      setClientes(c);
-      if (c.length === 0) setModoCliente('nuevo');
-    });
-  }, []);
+    if (resultado && resultado.total === 0 && !busqueda.trim()) setModoCliente('nuevo');
+  }, [resultado, busqueda]);
 
-  const filtrados = busqueda.trim()
-    ? clientes.filter(c =>
-        (c.nombre + ' ' + c.cedula + ' ' + c.telefono).toLowerCase().includes(busqueda.trim().toLowerCase()))
-    : clientes;
-
-  const clienteElegido = clientes.find(c => c.id === clienteId);
+  const filtrados = resultado?.clientes ?? [];
+  const clienteElegido = clienteSel;
 
   const guardar = async () => {
     const items = [];
     if (Number(andamios) > 0) items.push({ tipo: 'andamio', cantidad: Number(andamios), prestamo: prestamoAndamios });
     if (Number(tablones) > 0) items.push({ tipo: 'tablon', cantidad: Number(tablones), prestamo: prestamoTablones });
     if (!items.length) return aviso('Indica cuántos andamios o tablones se llevan', 'error');
-    if (modoCliente === 'existente' && !clienteId) return aviso('Elige el cliente', 'error');
+    if (modoCliente === 'existente' && !clienteSel) return aviso('Elige el cliente', 'error');
     if (modoCliente === 'nuevo' && !nuevoCliente.nombre.trim()) return aviso('Escribe el nombre del cliente', 'error');
 
     setGuardando(true);
@@ -56,7 +51,7 @@ export default function NuevoAlquiler() {
       const cuerpo = {
         items, fecha_inicio: fecha, cobra_sabado: cobraSabado, cobrar_primer_dia: cobrarPrimerDia,
         garantia, notas, direccion_obra: direccionObra, abono: Number(abono) || 0,
-        ...(modoCliente === 'existente' ? { cliente_id: clienteId } : { cliente: nuevoCliente })
+        ...(modoCliente === 'existente' ? { cliente_id: clienteSel.id } : { cliente: nuevoCliente })
       };
       const r = await api('/alquileres', { method: 'POST', body: cuerpo });
       aviso('Alquiler registrado ✔');
@@ -93,26 +88,26 @@ export default function NuevoAlquiler() {
         {modoCliente === 'existente' ? (
           <>
             <Entrada placeholder="Buscar por nombre, cédula o teléfono…" value={busqueda}
-              onChange={e => { setBusqueda(e.target.value); setClienteId(null); }} />
+              onChange={e => { setBusqueda(e.target.value); setClienteSel(null); }} />
             {clienteElegido ? (
               <div className="mt-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 text-sm">
                 <strong>{clienteElegido.nombre}</strong>
                 {clienteElegido.cedula && <> — C.I. {clienteElegido.cedula}</>}
                 {clienteElegido.telefono && <> — {clienteElegido.telefono}</>}
-                <button onClick={() => setClienteId(null)} className="ml-2 text-blue-700 underline cursor-pointer">cambiar</button>
+                <button onClick={() => setClienteSel(null)} className="ml-2 text-blue-700 underline cursor-pointer">cambiar</button>
               </div>
             ) : (
               <div className="mt-2 max-h-52 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl">
                 {filtrados.length === 0 && (
                   <p className="text-sm text-slate-400 p-3">
-                    No se encontró. <button className="text-blue-700 underline cursor-pointer"
+                    {resultado ? 'No se encontró.' : 'Buscando…'} <button className="text-blue-700 underline cursor-pointer"
                       onClick={() => { setModoCliente('nuevo'); setNuevoCliente(n => ({ ...n, nombre: busqueda })); }}>
                       Créalo como cliente nuevo
                     </button>
                   </p>
                 )}
-                {filtrados.slice(0, 30).map(c => (
-                  <button key={c.id} onClick={() => setClienteId(c.id)}
+                {filtrados.map(c => (
+                  <button key={c.id} onClick={() => setClienteSel(c)}
                     className="block w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 cursor-pointer">
                     <span className="font-medium text-slate-700">{c.nombre}</span>
                     {c.cedula && <span className="text-slate-400"> — {c.cedula}</span>}

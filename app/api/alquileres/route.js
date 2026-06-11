@@ -4,10 +4,13 @@ import { hoyLocal, calcularVarios } from '../../../lib/calculos.js';
 
 export const GET = conSesion(async (request) => {
   const hoy = hoyLocal();
-  const estado = new URL(request.url).searchParams.get('estado');
+  const sp = new URL(request.url).searchParams;
+  const cond = [], args = [];
+  if (sp.get('estado')) { cond.push('a.estado = ?'); args.push(sp.get('estado')); }
+  if (sp.get('desde')) { cond.push('a.fecha_inicio >= ?'); args.push(sp.get('desde')); }
+  if (sp.get('hasta')) { cond.push('a.fecha_inicio <= ?'); args.push(sp.get('hasta')); }
   let sql = 'SELECT a.*, c.nombre AS cliente_nombre FROM alquileres a JOIN clientes c ON c.id = a.cliente_id';
-  const args = [];
-  if (estado) { sql += ' WHERE a.estado = ?'; args.push(estado); }
+  if (cond.length) sql += ' WHERE ' + cond.join(' AND ');
   sql += ' ORDER BY a.id DESC LIMIT 300';
   const alqs = await todas(sql, ...args);
   const calculos = await calcularVarios(alqs, hoy);
