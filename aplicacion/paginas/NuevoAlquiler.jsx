@@ -21,6 +21,7 @@ export default function NuevoAlquiler() {
 
   const [fecha, setFecha] = useState(hoyISO());
   const [cobraSabado, setCobraSabado] = useState(true);
+  const [cobrarPrimerDia, setCobrarPrimerDia] = useState(true);
   const [garantia, setGarantia] = useState('Cédula');
   const [direccionObra, setDireccionObra] = useState('');
   const [notas, setNotas] = useState('');
@@ -52,8 +53,8 @@ export default function NuevoAlquiler() {
     setGuardando(true);
     try {
       const cuerpo = {
-        items, fecha_inicio: fecha, cobra_sabado: cobraSabado, garantia, notas,
-        direccion_obra: direccionObra,
+        items, fecha_inicio: fecha, cobra_sabado: cobraSabado, cobrar_primer_dia: cobrarPrimerDia,
+        garantia, notas, direccion_obra: direccionObra,
         ...(modoCliente === 'existente' ? { cliente_id: clienteId } : { cliente: nuevoCliente })
       };
       const r = await api('/alquileres', { method: 'POST', body: cuerpo });
@@ -173,6 +174,9 @@ export default function NuevoAlquiler() {
           <Entrada value={direccionObra} onChange={e => setDireccionObra(e.target.value)}
             placeholder="Ej: calle, barrio, referencia…" />
         </Campo>
+        <Interruptor marcado={cobrarPrimerDia} onChange={setCobrarPrimerDia}
+          etiqueta="Cobrar el día en que se llevan las piezas"
+          descripcion="Apágalo si acordaron que el primer día no se cuenta (ej: se las llevaron al final de la tarde)." />
         <Interruptor marcado={cobraSabado} onChange={setCobraSabado}
           etiqueta="Cobrar los sábados"
           descripcion="Los domingos nunca se cobran. Apaga esto si acordaron no cobrar sábados." />

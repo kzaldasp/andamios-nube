@@ -59,6 +59,7 @@ export default function Inicio() {
                         <span className="font-semibold text-slate-800">{a.cliente_nombre}</span>
                         {a.es_prestamo && <Insignia color="verde">Préstamo</Insignia>}
                         {!a.cobra_sabado && <Insignia color="ambar">Sin sábados</Insignia>}
+                        {!a.cobrar_primer_dia && <Insignia color="ambar">Sin 1er día</Insignia>}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">
                         {a.items.map(i => `${i.pendientes}${i.pendientes !== i.cantidad ? ` de ${i.cantidad}` : ''} ${nombreTipo(i.tipo, i.cantidad)}`).join(' · ')}

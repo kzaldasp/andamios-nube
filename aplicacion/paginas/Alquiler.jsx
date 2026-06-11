@@ -67,6 +67,7 @@ export default function Alquiler({ id }) {
             <div className="flex gap-1.5 mt-2 flex-wrap">
               {cerrado ? <Insignia>Cerrado</Insignia> : <Insignia color="azul">Activo</Insignia>}
               {!alq.cobra_sabado && <Insignia color="ambar">No se cobran sábados</Insignia>}
+              {!alq.cobrar_primer_dia && <Insignia color="ambar">No se cobra el primer día</Insignia>}
               {alq.garantia && (
                 <Insignia color={alq.garantia_devuelta ? 'slate' : 'ambar'}>
                   Garantía: {alq.garantia}{alq.garantia_devuelta ? ' (devuelta)' : ' (guardada)'}

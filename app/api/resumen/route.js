@@ -17,7 +17,7 @@ export const GET = conSesion(async () => {
     return {
       id: a.id, cliente_nombre: a.cliente_nombre, cliente_telefono: a.cliente_telefono,
       fecha_inicio: a.fecha_inicio, garantia: a.garantia, garantia_devuelta: a.garantia_devuelta,
-      cobra_sabado: a.cobra_sabado, direccion_obra: a.direccion_obra,
+      cobra_sabado: a.cobra_sabado, cobrar_primer_dia: a.cobrar_primer_dia, direccion_obra: a.direccion_obra,
       cargo_total: calc.cargo_total, pagado: calc.pagado, saldo: calc.saldo,
       es_prestamo: calc.items.every(i => i.precio_dia === 0),
       items: calc.items.map(i => ({ tipo: i.tipo, cantidad: i.cantidad, pendientes: i.pendientes, precio_dia: i.precio_dia }))
