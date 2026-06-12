@@ -85,8 +85,8 @@ export function Entrada(props) {
   return <input className={CLASE_INPUT} {...props} />;
 }
 
-export function AreaTexto(props) {
-  return <textarea className={`${CLASE_INPUT} min-h-[70px] resize-y`} {...props} />;
+export function AreaTexto({ className = '', ...props }) {
+  return <textarea className={`${CLASE_INPUT} min-h-[70px] resize-y ${className}`} {...props} />;
 }
 
 export function Interruptor({ marcado, onChange, etiqueta, descripcion }) {

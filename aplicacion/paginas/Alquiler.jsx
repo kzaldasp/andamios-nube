@@ -1,11 +1,12 @@
 // Detalle de un alquiler: cuenta, devoluciones parciales, pagos, descuento, cierre y pagaré
 import { useCallback, useEffect, useState } from 'react';
-import { FileText, Undo2, BadgeDollarSign, Percent, Lock, Unlock, Printer, Pencil, X } from 'lucide-react';
-import { api, dinero, fechaCorta, nombreTipo, hoyISO } from '../api.js';
+import { FileText, Undo2, BadgeDollarSign, Percent, Lock, Unlock, Printer, Pencil, X, FileCog, Eye } from 'lucide-react';
+import { api, abrirPreviaPlantilla, dinero, fechaCorta, nombreTipo, hoyISO } from '../api.js';
 import {
-  Tarjeta, TituloSeccion, Boton, Campo, Entrada, Interruptor, Modal,
+  Tarjeta, TituloSeccion, Boton, Campo, Entrada, AreaTexto, Interruptor, Modal,
   Cargando, Vacio, Insignia, Saldo, useAviso
 } from '../ui.jsx';
+import { AyudaMarcadores } from './Ajustes.jsx';
 
 export default function Alquiler({ id }) {
   const aviso = useAviso();
@@ -13,6 +14,7 @@ export default function Alquiler({ id }) {
   const [modal, setModal] = useState(null); // {tipo:'devolucion', item} | {tipo:'pago'} | {tipo:'descuento'} | {tipo:'cerrar'}
   const [form, setForm] = useState({});
   const [guardando, setGuardando] = useState(false);
+  const [plantillas, setPlantillas] = useState(null); // formatos globales y ayuda de marcadores
 
   const cargar = useCallback(() => {
     api(`/alquileres/${id}`).then(setAlq).catch(err => aviso(err.message, 'error'));
@@ -91,6 +93,16 @@ export default function Alquiler({ id }) {
               className="flex flex-col items-center gap-1 text-slate-500 text-xs font-medium p-2 rounded-xl hover:bg-slate-100"
               title="Editar condiciones de cobro">
               <Pencil size={20} /> Editar
+            </button>
+            <button onClick={async () => {
+              try {
+                if (!plantillas) setPlantillas(await api('/plantillas'));
+                abrir('formato', { plantilla_pagare: alq.plantilla_pagare || '', plantilla_recibo: alq.plantilla_recibo || '' });
+              } catch (err) { aviso(err.message, 'error'); }
+            }}
+              className="flex flex-col items-center gap-1 text-slate-500 text-xs font-medium p-2 rounded-xl hover:bg-slate-100"
+              title="Formato de los documentos de este alquiler">
+              <FileCog size={20} /> Formato
             </button>
             <a href={`/imprimir/pagare/${alq.id}`} target="_blank" rel="noreferrer"
               className="flex flex-col items-center gap-1 text-blue-700 text-xs font-medium p-2 rounded-xl hover:bg-blue-50">
@@ -325,6 +337,73 @@ export default function Alquiler({ id }) {
           }}>
           Guardar cambios
         </Boton>
+      </Modal>
+
+      <Modal titulo="Formato de los documentos" abierto={modal === 'formato'} onCerrar={() => setModal(null)}>
+        {plantillas && (
+          <>
+            <p className="text-sm text-slate-500 mb-3">
+              Estos formatos valen <strong>solo para este alquiler</strong>.
+              Si dejas un cuadro vacío, se usa el formato general (el de Ajustes).
+            </p>
+
+            <Campo etiqueta="Pagaré de este alquiler">
+              <AreaTexto rows={8} className="font-mono !text-xs"
+                placeholder="Vacío: se usa el formato general"
+                value={form.plantilla_pagare ?? ''}
+                onChange={e => setForm({ ...form, plantilla_pagare: e.target.value })} />
+            </Campo>
+            <div className="flex gap-2 flex-wrap mb-4">
+              <Boton variante="secundario" className="!py-1.5 !px-3 text-xs"
+                onClick={() => abrirPreviaPlantilla('pagare', form.plantilla_pagare, alq.id).catch(err => aviso(err.message, 'error'))}>
+                <Eye size={14} /> Vista previa
+              </Boton>
+              <Boton variante="fantasma" className="!py-1.5 !px-3 text-xs"
+                onClick={() => setForm({ ...form, plantilla_pagare: plantillas.pagare_global })}>
+                Copiar el formato general para editarlo
+              </Boton>
+            </div>
+            <AyudaMarcadores marcadores={plantillas.marcadores_pagare} />
+
+            <Campo etiqueta="Recibo de pago de este alquiler">
+              <AreaTexto rows={8} className="font-mono !text-xs"
+                placeholder="Vacío: se usa el formato general"
+                value={form.plantilla_recibo ?? ''}
+                onChange={e => setForm({ ...form, plantilla_recibo: e.target.value })} />
+            </Campo>
+            <div className="flex gap-2 flex-wrap mb-3">
+              <Boton variante="secundario" className="!py-1.5 !px-3 text-xs"
+                onClick={() => abrirPreviaPlantilla('recibo', form.plantilla_recibo, alq.id).catch(err => aviso(err.message, 'error'))}>
+                <Eye size={14} /> Vista previa
+              </Boton>
+              <Boton variante="fantasma" className="!py-1.5 !px-3 text-xs"
+                onClick={() => setForm({ ...form, plantilla_recibo: plantillas.recibo_global })}>
+                Copiar el formato general para editarlo
+              </Boton>
+            </div>
+            <AyudaMarcadores marcadores={plantillas.marcadores_recibo} />
+
+            <Boton className="w-full mt-2" cargando={guardando}
+              onClick={async () => {
+                setGuardando(true);
+                try {
+                  await api(`/alquileres/${id}`, {
+                    method: 'PUT',
+                    body: { plantilla_pagare: form.plantilla_pagare || '', plantilla_recibo: form.plantilla_recibo || '' }
+                  });
+                  aviso('Formato guardado ✔');
+                  setModal(null);
+                  cargar();
+                } catch (err) {
+                  aviso(err.message, 'error');
+                } finally {
+                  setGuardando(false);
+                }
+              }}>
+              Guardar formato
+            </Boton>
+          </>
+        )}
       </Modal>
 
       <Modal titulo="Cerrar alquiler" abierto={modal === 'cerrar'} onCerrar={() => setModal(null)}>

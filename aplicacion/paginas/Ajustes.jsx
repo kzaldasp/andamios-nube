@@ -1,11 +1,30 @@
-// Ajustes: datos del negocio, precios, valores de reposición y usuarios
+// Ajustes: datos del negocio, precios, formato de documentos y usuarios
 import { useEffect, useState } from 'react';
-import { UserPlus, KeyRound, CloudDownload } from 'lucide-react';
-import { api } from '../api.js';
+import { UserPlus, KeyRound, CloudDownload, Eye, RotateCcw } from 'lucide-react';
+import { api, abrirPreviaPlantilla } from '../api.js';
 import {
-  Tarjeta, TituloSeccion, Boton, Campo, Entrada, Modal,
+  Tarjeta, TituloSeccion, Boton, Campo, Entrada, AreaTexto, Modal,
   Cargando, Insignia, useAviso
 } from '../ui.jsx';
+
+// Ayuda plegable con los marcadores {{asi}} que acepta una plantilla
+export function AyudaMarcadores({ marcadores }) {
+  return (
+    <details className="text-xs text-slate-500 mb-3">
+      <summary className="cursor-pointer font-medium text-blue-700">Ver las palabras que puedes usar</summary>
+      <p className="mt-2 mb-1">
+        Escribe estas palabras entre llaves dobles y se reemplazan con los datos reales.
+        Si una línea queda sin datos (ej: no hay garantía), esa línea no se imprime.
+        Usa <code>**texto**</code> para negrita, <code># </code> para título y <code>&gt; </code> para letra pequeña.
+      </p>
+      <ul className="space-y-0.5 mt-1">
+        {marcadores.map(([clave, descripcion]) => (
+          <li key={clave}><code className="bg-slate-100 px-1 rounded">{'{{' + clave + '}}'}</code> — {descripcion}</li>
+        ))}
+      </ul>
+    </details>
+  );
+}
 
 // La config guarda dinero en centavos; aquí se edita en dólares
 const CAMPOS_DINERO = ['precio_andamio', 'precio_tablon', 'reposicion_andamio', 'reposicion_tablon'];
@@ -13,13 +32,18 @@ const CAMPOS_DINERO = ['precio_andamio', 'precio_tablon', 'reposicion_andamio', 
 export default function Ajustes({ alRecargarSesion }) {
   const aviso = useAviso();
   const [config, setConfig] = useState(null);
+  const [plantillas, setPlantillas] = useState(null);
   const [usuarios, setUsuarios] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [modalUsuario, setModalUsuario] = useState(null); // { id?, nombre, pin }
 
   const cargar = async () => {
-    const cfg = await api('/config');
+    const [cfg, p] = await Promise.all([api('/config'), api('/plantillas')]);
     for (const k of CAMPOS_DINERO) cfg[k] = (Number(cfg[k]) / 100).toFixed(2);
+    // Si no hay formato propio guardado, se edita partiendo del que trae la app
+    if (!cfg.plantilla_pagare?.trim()) cfg.plantilla_pagare = p.pagare_defecto;
+    if (!cfg.plantilla_recibo?.trim()) cfg.plantilla_recibo = p.recibo_defecto;
+    setPlantillas(p);
     setConfig(cfg);
     setUsuarios(await api('/usuarios'));
   };
@@ -34,6 +58,10 @@ export default function Ajustes({ alRecargarSesion }) {
     try {
       const cuerpo = { ...config };
       for (const k of CAMPOS_DINERO) cuerpo[k] = Math.round(Number(config[k]) * 100) || 0;
+      // Si dejaron el formato igual al original, se guarda vacío para que
+      // futuras mejoras del formato de la app se apliquen solas
+      if (cuerpo.plantilla_pagare?.trim() === plantillas.pagare_defecto.trim()) cuerpo.plantilla_pagare = '';
+      if (cuerpo.plantilla_recibo?.trim() === plantillas.recibo_defecto.trim()) cuerpo.plantilla_recibo = '';
       await api('/config', { method: 'POST', body: cuerpo });
       aviso('Ajustes guardados ✔');
     } catch (err) {
@@ -101,6 +129,56 @@ export default function Ajustes({ alRecargarSesion }) {
           <Campo etiqueta="Andamio"><Entrada type="number" step="0.01" min="0" {...campo('reposicion_andamio')} /></Campo>
           <Campo etiqueta="Tablón"><Entrada type="number" step="0.01" min="0" {...campo('reposicion_tablon')} /></Campo>
         </div>
+      </Tarjeta>
+
+      <Tarjeta>
+        <TituloSeccion>Formato de los documentos</TituloSeccion>
+        <p className="text-xs text-slate-400 -mt-2 mb-3">
+          Aquí puedes cambiar el texto del pagaré y del recibo que se imprimen.
+          Este formato se usa para todos los alquileres (cada alquiler puede tener
+          el suyo propio desde su pantalla, con el botón "Formato").
+        </p>
+
+        <Campo etiqueta="Pagaré">
+          <AreaTexto rows={10} className="font-mono !text-xs" value={config.plantilla_pagare}
+            onChange={e => setConfig({ ...config, plantilla_pagare: e.target.value })} />
+        </Campo>
+        <AyudaMarcadores marcadores={plantillas.marcadores_pagare} />
+        <div className="flex gap-2 mb-5">
+          <Boton variante="secundario" className="!py-1.5 !px-3 text-xs"
+            onClick={() => abrirPreviaPlantilla('pagare', config.plantilla_pagare).catch(err => aviso(err.message, 'error'))}>
+            <Eye size={14} /> Vista previa
+          </Boton>
+          <Boton variante="fantasma" className="!py-1.5 !px-3 text-xs"
+            onClick={() => {
+              if (window.confirm('¿Volver al formato original del pagaré? Se perderán tus cambios de este formato.')) {
+                setConfig({ ...config, plantilla_pagare: plantillas.pagare_defecto });
+              }
+            }}>
+            <RotateCcw size={14} /> Restaurar original
+          </Boton>
+        </div>
+
+        <Campo etiqueta="Recibo de pago">
+          <AreaTexto rows={10} className="font-mono !text-xs" value={config.plantilla_recibo}
+            onChange={e => setConfig({ ...config, plantilla_recibo: e.target.value })} />
+        </Campo>
+        <AyudaMarcadores marcadores={plantillas.marcadores_recibo} />
+        <div className="flex gap-2">
+          <Boton variante="secundario" className="!py-1.5 !px-3 text-xs"
+            onClick={() => abrirPreviaPlantilla('recibo', config.plantilla_recibo).catch(err => aviso(err.message, 'error'))}>
+            <Eye size={14} /> Vista previa
+          </Boton>
+          <Boton variante="fantasma" className="!py-1.5 !px-3 text-xs"
+            onClick={() => {
+              if (window.confirm('¿Volver al formato original del recibo? Se perderán tus cambios de este formato.')) {
+                setConfig({ ...config, plantilla_recibo: plantillas.recibo_defecto });
+              }
+            }}>
+            <RotateCcw size={14} /> Restaurar original
+          </Boton>
+        </div>
+        <p className="text-xs text-slate-400 mt-3">Recuerda tocar "Guardar ajustes" para que los cambios queden guardados.</p>
       </Tarjeta>
 
       <Boton onClick={guardarConfig} cargando={guardando} className="w-full">Guardar ajustes</Boton>

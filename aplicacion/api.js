@@ -15,6 +15,28 @@ export async function api(ruta, opciones = {}) {
   return datos;
 }
 
+// Abre en otra pestaña cómo quedaría un documento con el formato dado
+export async function abrirPreviaPlantilla(tipo, texto, alquilerId) {
+  const ventana = window.open('', '_blank'); // se abre antes del fetch para que el navegador no la bloquee
+  try {
+    const res = await fetch('/api/plantillas/previa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo, texto, alquiler_id: alquilerId })
+    });
+    if (!res.ok) {
+      const datos = await res.json().catch(() => ({}));
+      throw new Error(datos.error || 'No se pudo generar la vista previa');
+    }
+    const html = await res.text();
+    ventana.document.write(html);
+    ventana.document.close();
+  } catch (err) {
+    ventana?.close();
+    throw err;
+  }
+}
+
 export const dinero = (centavos) => {
   const negativo = centavos < 0;
   return (negativo ? '-$' : '$') + (Math.abs(centavos) / 100).toFixed(2);
