@@ -15,13 +15,15 @@ export const POST = conSesion(async (request, contexto, usuario) => {
   if (yaDevueltas + cant > item.cantidad) {
     return Response.json({ error: `Solo quedan ${item.cantidad - yaDevueltas} por devolver` }, { status: 400 });
   }
+  // Las piezas agregadas a mitad de obra cobran desde su propia fecha
+  const inicioItem = item.fecha_inicio || alq.fecha_inicio;
   const fecha = c.fecha || hoyLocal();
-  if (fecha < alq.fecha_inicio) return Response.json({ error: 'La fecha de devolución no puede ser antes del inicio' }, { status: 400 });
+  if (fecha < inicioItem) return Response.json({ error: 'La fecha de devolución no puede ser antes del inicio' }, { status: 400 });
   // Si acordaron cobrar solo hasta una fecha anterior a la entrega real
   const cobrarHasta = (c.cobrar_hasta && c.cobrar_hasta !== fecha) ? c.cobrar_hasta : null;
   if (cobrarHasta) {
     if (cobrarHasta > fecha) return Response.json({ error: '"Cobrar hasta" no puede ser después del día de la entrega' }, { status: 400 });
-    if (cobrarHasta < alq.fecha_inicio) return Response.json({ error: '"Cobrar hasta" no puede ser antes del inicio' }, { status: 400 });
+    if (cobrarHasta < inicioItem) return Response.json({ error: '"Cobrar hasta" no puede ser antes del inicio' }, { status: 400 });
   }
   await ejecutar('INSERT INTO devoluciones (item_id, cantidad, fecha, cobrar_hasta, cobrar_ultimo_dia, usuario_id) VALUES (?, ?, ?, ?, ?, ?)',
     item.id, cant, fecha, cobrarHasta, c.cobrar_ultimo_dia === false ? 0 : 1, usuario.id);

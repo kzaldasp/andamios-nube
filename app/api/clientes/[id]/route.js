@@ -31,3 +31,17 @@ export const PUT = conSesion(async (request, contexto) => {
     c.direccion ?? actual.direccion, c.notas ?? actual.notas, Number(id));
   return Response.json({ ok: true });
 });
+
+// Borra un cliente, solo si nunca ha tenido alquileres (típico: duplicado
+// o creado por error). Si tiene historial, se conserva.
+export const DELETE = conSesion(async (request, contexto) => {
+  const { id } = await contexto.params;
+  const cliente = await una('SELECT * FROM clientes WHERE id = ?', Number(id));
+  if (!cliente) return Response.json({ error: 'Cliente no encontrado' }, { status: 404 });
+  const n = (await una('SELECT COUNT(*) AS n FROM alquileres WHERE cliente_id = ?', cliente.id)).n;
+  if (n > 0) {
+    return Response.json({ error: `No se puede borrar: tiene ${n} alquiler(es) en el historial` }, { status: 400 });
+  }
+  await ejecutar('DELETE FROM clientes WHERE id = ?', cliente.id);
+  return Response.json({ ok: true });
+});

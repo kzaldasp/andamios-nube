@@ -1,6 +1,6 @@
 // Ajustes: datos del negocio, precios, formato de documentos y usuarios
-import { useEffect, useState } from 'react';
-import { UserPlus, KeyRound, CloudDownload, Eye, RotateCcw } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { UserPlus, KeyRound, CloudDownload, CloudUpload, Eye, RotateCcw } from 'lucide-react';
 import { api, abrirPreviaPlantilla } from '../api.js';
 import {
   Tarjeta, TituloSeccion, Boton, Campo, Entrada, AreaTexto, Modal,
@@ -36,6 +36,7 @@ export default function Ajustes({ alRecargarSesion }) {
   const [usuarios, setUsuarios] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [modalUsuario, setModalUsuario] = useState(null); // { id?, nombre, pin }
+  const archivoRespaldo = useRef(null);
 
   const cargar = async () => {
     const [cfg, p] = await Promise.all([api('/config'), api('/plantillas')]);
@@ -222,9 +223,40 @@ export default function Ajustes({ alRecargarSesion }) {
           usar la aplicación desde cualquier celular o computadora. De vez en cuando
           descarga una copia de seguridad y guárdala en tu equipo.
         </p>
-        <Boton variante="secundario" onClick={() => { window.location.href = '/api/respaldo'; }}>
-          <CloudDownload size={16} /> Descargar copia de seguridad
-        </Boton>
+        <div className="flex flex-wrap gap-2">
+          <Boton variante="secundario" onClick={() => { window.location.href = '/api/respaldo'; }}>
+            <CloudDownload size={16} /> Descargar copia de seguridad
+          </Boton>
+          <Boton variante="secundario" cargando={guardando} onClick={() => archivoRespaldo.current?.click()}>
+            <CloudUpload size={16} /> Restaurar una copia
+          </Boton>
+        </div>
+        <input ref={archivoRespaldo} type="file" accept=".json,application/json" className="hidden"
+          onChange={async (e) => {
+            const archivo = e.target.files?.[0];
+            e.target.value = '';
+            if (!archivo) return;
+            let copia;
+            try {
+              copia = JSON.parse(await archivo.text());
+            } catch {
+              return aviso('El archivo no se pudo leer como respaldo', 'error');
+            }
+            if (!window.confirm(`⚠️ Restaurar "${archivo.name}" BORRA todos los datos actuales y los reemplaza por los del archivo${copia.generado ? ` (creado el ${copia.generado.slice(0, 10)})` : ''}. ¿Continuar?`)) return;
+            if (!window.confirm('Esta acción NO se puede deshacer y cierra la sesión de todos. ¿Restaurar definitivamente?')) return;
+            setGuardando(true);
+            try {
+              await api('/respaldo', { method: 'POST', body: copia });
+              window.alert('Respaldo restaurado ✔. Vuelve a entrar con el PIN que tenías cuando se creó esa copia.');
+              window.location.reload();
+            } catch (err) {
+              aviso(err.message, 'error');
+              setGuardando(false);
+            }
+          }} />
+        <p className="text-xs text-slate-400 mt-2">
+          Restaurar reemplaza TODO con lo del archivo (se usa si se dañó algo o se borraron datos por error).
+        </p>
       </Tarjeta>
 
       <Modal titulo={modalUsuario?.id ? 'Editar usuario' : 'Nuevo usuario'}

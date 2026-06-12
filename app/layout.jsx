@@ -2,8 +2,11 @@ import './globals.css';
 
 export const metadata = {
   title: 'Alquiler de Andamios',
+  manifest: '/manifest.json',
+  appleWebApp: { capable: true, title: 'Andamios', statusBarStyle: 'default' },
   icons: {
-    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🏗️</text></svg>"
+    icon: '/icono-192.png',
+    apple: '/icono-192.png'
   }
 };
 

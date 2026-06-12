@@ -1,6 +1,6 @@
 // Lista de clientes y ficha individual con su historial
 import { useEffect, useState } from 'react';
-import { UserPlus, ChevronRight, Pencil } from 'lucide-react';
+import { UserPlus, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { api, fechaCorta, navegar } from '../api.js';
 import { useBusquedaClientes } from '../hooks.js';
 import {
@@ -173,6 +173,24 @@ export function Cliente({ id }) {
           </div>
         )}
       </section>
+
+      {cliente.alquileres.length === 0 && (
+        <div className="text-center">
+          <button onClick={async () => {
+            if (!window.confirm(`¿Borrar al cliente "${cliente.nombre}"? Solo se puede porque no tiene alquileres.`)) return;
+            try {
+              await api(`/clientes/${id}`, { method: 'DELETE' });
+              aviso('Cliente borrado');
+              navegar('/clientes');
+            } catch (err) {
+              aviso(err.message, 'error');
+            }
+          }}
+            className="inline-flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 p-2">
+            <Trash2 size={13} /> Borrar este cliente (duplicado o creado por error)
+          </button>
+        </div>
+      )}
 
       <Modal titulo="Editar cliente" abierto={editando} onCerrar={() => setEditando(false)}>
         <FormularioCliente inicial={cliente} onGuardar={guardar} guardando={guardando} />

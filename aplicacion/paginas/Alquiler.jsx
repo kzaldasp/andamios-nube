@@ -1,7 +1,7 @@
 // Detalle de un alquiler: cuenta, devoluciones parciales, pagos, descuento, cierre y pagaré
 import { useCallback, useEffect, useState } from 'react';
-import { FileText, Undo2, BadgeDollarSign, Percent, Lock, Unlock, Printer, Pencil, X, FileCog, Eye } from 'lucide-react';
-import { api, abrirPreviaPlantilla, dinero, fechaCorta, nombreTipo, hoyISO } from '../api.js';
+import { FileText, Undo2, BadgeDollarSign, Percent, Lock, Unlock, Printer, Pencil, X, FileCog, Eye, PlusCircle, Trash2 } from 'lucide-react';
+import { api, abrirPreviaPlantilla, dinero, fechaCorta, nombreTipo, hoyISO, navegar } from '../api.js';
 import {
   Tarjeta, TituloSeccion, Boton, Campo, Entrada, AreaTexto, Interruptor, Modal,
   Cargando, Vacio, Insignia, Saldo, useAviso
@@ -41,6 +41,29 @@ export default function Alquiler({ id }) {
       aviso(err.message, 'error');
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const anularPago = async (p) => {
+    if (!window.confirm(`¿Anular el pago de ${dinero(p.monto)} del ${fechaCorta(p.fecha)}? Desaparecerá de la cuenta y de los reportes.`)) return;
+    try {
+      await api(`/alquileres/${id}/anular-pago`, { method: 'POST', body: { pago_id: p.id } });
+      aviso('Pago anulado ✔');
+      cargar();
+    } catch (err) {
+      aviso(err.message, 'error');
+    }
+  };
+
+  const eliminarAlquiler = async () => {
+    if (!window.confirm('¿Eliminar este alquiler COMPLETO? Se borran sus piezas, devoluciones y pagos. Esto es solo para alquileres creados por error.')) return;
+    if (!window.confirm('Esta acción NO se puede deshacer. ¿Eliminar definitivamente?')) return;
+    try {
+      await api(`/alquileres/${id}`, { method: 'DELETE' });
+      aviso('Alquiler eliminado');
+      navegar('/');
+    } catch (err) {
+      aviso(err.message, 'error');
     }
   };
 
@@ -89,9 +112,18 @@ export default function Alquiler({ id }) {
             </div>
           </div>
           <div className="flex gap-1 shrink-0">
-            <button onClick={() => abrir('condiciones', { cobrar_primer_dia: !!alq.cobrar_primer_dia, cobra_sabado: !!alq.cobra_sabado })}
+            <button onClick={() => abrir('condiciones', {
+              cobrar_primer_dia: !!alq.cobrar_primer_dia, cobra_sabado: !!alq.cobra_sabado,
+              fecha_inicio: alq.fecha_inicio, garantia: alq.garantia || '',
+              garantia_devuelta: !!alq.garantia_devuelta, direccion_obra: alq.direccion_obra || '',
+              notas: alq.notas || '',
+              items: alq.items.map(i => ({
+                id: i.id, tipo: i.tipo, devueltas: i.devueltas,
+                cantidad: String(i.cantidad), precio: (i.precio_dia / 100).toFixed(2)
+              }))
+            })}
               className="flex flex-col items-center gap-1 text-slate-500 text-xs font-medium p-2 rounded-xl hover:bg-slate-100"
-              title="Editar condiciones de cobro">
+              title="Editar este alquiler">
               <Pencil size={20} /> Editar
             </button>
             <button onClick={async () => {
@@ -137,7 +169,15 @@ export default function Alquiler({ id }) {
 
       {/* Ítems */}
       <Tarjeta>
-        <TituloSeccion>Lo alquilado</TituloSeccion>
+        <TituloSeccion
+          extra={!cerrado ? (
+            <Boton variante="secundario" className="!py-1.5 !px-3"
+              onClick={() => abrir('agregar', { tipo: 'andamio', cantidad: '', prestamo: false })}>
+              <PlusCircle size={15} /> Agregar piezas
+            </Boton>
+          ) : null}>
+          Lo alquilado
+        </TituloSeccion>
         <div className="space-y-3">
           {alq.items.map(it => (
             <div key={it.id} className="border border-slate-200 rounded-xl p-3.5">
@@ -149,6 +189,7 @@ export default function Alquiler({ id }) {
                   {it.precio_dia === 0
                     ? <Insignia color="verde">Préstamo</Insignia>
                     : <span className="text-xs text-slate-400"> · {dinero(it.precio_dia)}/día c/u</span>}
+                  {it.fecha_inicio && <span className="text-xs text-blue-600"> · desde el {fechaCorta(it.fecha_inicio)}</span>}
                   <div className="text-xs text-slate-500 mt-1">
                     {it.pendientes > 0
                       ? <>Afuera: <strong>{it.pendientes}</strong> ({it.dias_pendientes} día{it.dias_pendientes !== 1 && 's'} hasta hoy)</>
@@ -211,10 +252,18 @@ export default function Alquiler({ id }) {
                   {p.nota && <span className="text-slate-400"> · {p.nota}</span>}
                   {p.usuario_nombre && <span className="text-slate-300 text-xs"> · {p.usuario_nombre}</span>}
                 </div>
-                <a href={`/imprimir/recibo/${p.id}`} target="_blank" rel="noreferrer"
-                  className="text-blue-700 p-1.5 rounded-lg hover:bg-blue-50" title="Imprimir recibo">
-                  <Printer size={16} />
-                </a>
+                <div className="flex items-center gap-1 shrink-0">
+                  <a href={`/imprimir/recibo/${p.id}`} target="_blank" rel="noreferrer"
+                    className="text-blue-700 p-1.5 rounded-lg hover:bg-blue-50" title="Imprimir recibo">
+                    <Printer size={16} />
+                  </a>
+                  {!cerrado && (
+                    <button onClick={() => anularPago(p)} title="Anular este pago"
+                      className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg">
+                      <X size={15} />
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
@@ -242,6 +291,14 @@ export default function Alquiler({ id }) {
             <Unlock size={15} /> Reabrir
           </Boton>
         )}
+      </div>
+
+      {/* Zona de peligro: solo para alquileres creados por error */}
+      <div className="text-center">
+        <button onClick={eliminarAlquiler}
+          className="inline-flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 p-2">
+          <Trash2 size={13} /> Eliminar este alquiler (solo si se creó por error)
+        </button>
       </div>
 
       {/* ----- Modales ----- */}
@@ -312,7 +369,51 @@ export default function Alquiler({ id }) {
         </Boton>
       </Modal>
 
-      <Modal titulo="Condiciones de cobro" abierto={modal === 'condiciones'} onCerrar={() => setModal(null)}>
+      <Modal titulo="Editar alquiler" abierto={modal === 'condiciones'} onCerrar={() => setModal(null)}>
+        <Campo etiqueta="Fecha de inicio">
+          <Entrada type="date" value={form.fecha_inicio || ''}
+            onChange={e => setForm({ ...form, fecha_inicio: e.target.value })} />
+        </Campo>
+
+        {form.items?.length > 0 && (
+          <div className="mb-3">
+            <p className="text-xs font-medium text-slate-500 mb-1.5">Piezas (corrige cantidad o precio por día)</p>
+            <div className="space-y-2">
+              {form.items.map((it, i) => (
+                <div key={it.id} className="flex items-center gap-2 text-sm">
+                  <span className="w-20 capitalize text-slate-600 shrink-0">{nombreTipo(it.tipo)}</span>
+                  <Entrada type="number" min={Math.max(it.devueltas, 1)} inputMode="numeric" className="!w-20"
+                    value={it.cantidad}
+                    onChange={e => setForm({ ...form, items: form.items.map((x, j) => j === i ? { ...x, cantidad: e.target.value } : x) })} />
+                  <span className="text-slate-400 text-xs">×</span>
+                  <Entrada type="number" min="0" step="0.01" inputMode="decimal" className="!w-24"
+                    value={it.precio}
+                    onChange={e => setForm({ ...form, items: form.items.map((x, j) => j === i ? { ...x, precio: e.target.value } : x) })} />
+                  <span className="text-slate-400 text-xs">$/día</span>
+                </div>
+              ))}
+            </div>
+            {form.items.some(it => it.devueltas > 0) && (
+              <p className="text-[11px] text-slate-400 mt-1">La cantidad no puede bajar de lo ya devuelto.</p>
+            )}
+          </div>
+        )}
+
+        <Campo etiqueta="Garantía que dejó el cliente">
+          <Entrada value={form.garantia ?? ''} onChange={e => setForm({ ...form, garantia: e.target.value })} />
+        </Campo>
+        {form.garantia?.trim() && (
+          <Interruptor marcado={!!form.garantia_devuelta}
+            onChange={v => setForm({ ...form, garantia_devuelta: v })}
+            etiqueta="Garantía ya devuelta al cliente"
+            descripcion="Márcalo si le devolviste la garantía antes de cerrar el alquiler." />
+        )}
+        <Campo etiqueta="Dirección de la obra">
+          <Entrada value={form.direccion_obra ?? ''} onChange={e => setForm({ ...form, direccion_obra: e.target.value })} />
+        </Campo>
+        <Campo etiqueta="Notas">
+          <AreaTexto value={form.notas ?? ''} onChange={e => setForm({ ...form, notas: e.target.value })} />
+        </Campo>
         <Interruptor marcado={!!form.cobrar_primer_dia}
           onChange={v => setForm({ ...form, cobrar_primer_dia: v })}
           etiqueta="Cobrar el día en que se llevan las piezas"
@@ -325,8 +426,20 @@ export default function Alquiler({ id }) {
           onClick={async () => {
             setGuardando(true);
             try {
-              await api(`/alquileres/${id}`, { method: 'PUT', body: { cobrar_primer_dia: form.cobrar_primer_dia, cobra_sabado: form.cobra_sabado } });
-              aviso('Condiciones actualizadas ✔');
+              await api(`/alquileres/${id}`, {
+                method: 'PUT',
+                body: {
+                  cobrar_primer_dia: form.cobrar_primer_dia, cobra_sabado: form.cobra_sabado,
+                  fecha_inicio: form.fecha_inicio, garantia: form.garantia,
+                  garantia_devuelta: form.garantia_devuelta, direccion_obra: form.direccion_obra,
+                  notas: form.notas,
+                  items: form.items.map(it => ({
+                    id: it.id, cantidad: Number(it.cantidad),
+                    precio_dia: Math.round(Number(it.precio) * 100) || 0
+                  }))
+                }
+              });
+              aviso('Alquiler actualizado ✔');
               setModal(null);
               cargar();
             } catch (err) {
@@ -336,6 +449,54 @@ export default function Alquiler({ id }) {
             }
           }}>
           Guardar cambios
+        </Boton>
+      </Modal>
+
+      <Modal titulo="Agregar piezas al alquiler" abierto={modal === 'agregar'} onCerrar={() => setModal(null)}>
+        <p className="text-sm text-slate-500 mb-3">
+          Para cuando el cliente pide más piezas a mitad de obra: se cobran desde
+          la fecha que indiques aquí, no desde el inicio del alquiler.
+        </p>
+        <div className="grid grid-cols-2 gap-x-3">
+          <Campo etiqueta="¿Qué se lleva?">
+            <select value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm">
+              <option value="andamio">Andamios</option>
+              <option value="tablon">Tablones</option>
+            </select>
+          </Campo>
+          <Campo etiqueta="Cantidad">
+            <Entrada type="number" min="1" inputMode="numeric" placeholder="0"
+              value={form.cantidad ?? ''} onChange={e => setForm({ ...form, cantidad: e.target.value })} />
+          </Campo>
+        </div>
+        <Campo etiqueta="Se cobran desde">
+          <Entrada type="date" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })} />
+        </Campo>
+        <Interruptor marcado={!!form.prestamo} onChange={v => setForm({ ...form, prestamo: v })}
+          etiqueta="Es préstamo (no se cobra)" />
+        <Boton className="w-full mt-3" cargando={guardando}
+          onClick={async () => {
+            setGuardando(true);
+            const cuerpo = { tipo: form.tipo, cantidad: Number(form.cantidad), fecha_inicio: form.fecha, prestamo: form.prestamo };
+            try {
+              try {
+                await api(`/alquileres/${id}/items`, { method: 'POST', body: cuerpo });
+              } catch (err) {
+                if (!err.datos?.puede_forzar) throw err;
+                if (!window.confirm(err.message + '. ¿Registrar igual? (quizá el inventario está desactualizado)')) return;
+                await api(`/alquileres/${id}/items`, { method: 'POST', body: { ...cuerpo, forzar: true } });
+              }
+              aviso('Piezas agregadas ✔');
+              setModal(null);
+              cargar();
+            } catch (err) {
+              aviso(err.message, 'error');
+            } finally {
+              setGuardando(false);
+            }
+          }}>
+          Agregar al alquiler
         </Boton>
       </Modal>
 

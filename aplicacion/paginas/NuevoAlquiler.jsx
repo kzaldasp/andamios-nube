@@ -27,8 +27,10 @@ export default function NuevoAlquiler() {
   const [abono, setAbono] = useState('');
   const [notas, setNotas] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [inventario, setInventario] = useState(null);
 
   useEffect(() => { api('/config').then(setConfig); }, []);
+  useEffect(() => { api('/inventario').then(setInventario).catch(() => {}); }, []);
 
   // Si todavía no hay ningún cliente registrado, ir directo al formulario
   useEffect(() => {
@@ -53,7 +55,15 @@ export default function NuevoAlquiler() {
         garantia, notas, direccion_obra: direccionObra, abono: Number(abono) || 0,
         ...(modoCliente === 'existente' ? { cliente_id: clienteSel.id } : { cliente: nuevoCliente })
       };
-      const r = await api('/alquileres', { method: 'POST', body: cuerpo });
+      let r;
+      try {
+        r = await api('/alquileres', { method: 'POST', body: cuerpo });
+      } catch (err) {
+        // El inventario dice que no alcanzan las piezas: se puede continuar confirmando
+        if (!err.datos?.puede_forzar) throw err;
+        if (!window.confirm(err.message + '. ¿Registrar igual? (quizá el inventario está desactualizado)')) return;
+        r = await api('/alquileres', { method: 'POST', body: { ...cuerpo, forzar: true } });
+      }
       aviso('Alquiler registrado ✔');
       if (window.confirm('¿Imprimir el pagaré para que lo firme el cliente?')) {
         window.open(`/imprimir/pagare/${r.id}`, '_blank');
@@ -138,7 +148,8 @@ export default function NuevoAlquiler() {
         <TituloSeccion>2. ¿Qué se lleva?</TituloSeccion>
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="border border-slate-200 rounded-xl p-4">
-            <Campo etiqueta={`Andamios (${precio('precio_andamio')} por día)`}>
+            <Campo etiqueta={`Andamios (${precio('precio_andamio')} por día)`}
+              ayuda={inventario?.andamio.total > 0 ? `Hay ${inventario.andamio.disponibles} disponibles.` : ''}>
               <Entrada type="number" min="0" inputMode="numeric" placeholder="0"
                 value={andamios} onChange={e => setAndamios(e.target.value)} />
             </Campo>
@@ -146,7 +157,8 @@ export default function NuevoAlquiler() {
               etiqueta="Es préstamo (no se cobra)" />
           </div>
           <div className="border border-slate-200 rounded-xl p-4">
-            <Campo etiqueta={`Tablones (${precio('precio_tablon')} por día)`}>
+            <Campo etiqueta={`Tablones (${precio('precio_tablon')} por día)`}
+              ayuda={inventario?.tablon.total > 0 ? `Hay ${inventario.tablon.disponibles} disponibles.` : ''}>
               <Entrada type="number" min="0" inputMode="numeric" placeholder="0"
                 value={tablones} onChange={e => setTablones(e.target.value)} />
             </Campo>

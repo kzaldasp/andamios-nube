@@ -1,7 +1,7 @@
 // Reportes de ingresos (con filtro de fechas) e historial de alquileres
 import { useEffect, useState } from 'react';
-import { ChevronRight, Printer, AlertCircle, Trophy } from 'lucide-react';
-import { api, dinero, fechaCorta, nombreMes, hoyISO } from '../api.js';
+import { ChevronRight, Printer, AlertCircle, Trophy, MessageCircle, Download } from 'lucide-react';
+import { api, dinero, fechaCorta, nombreMes, hoyISO, enlaceWhatsApp, descargarCSV } from '../api.js';
 import { Tarjeta, TituloSeccion, Cargando, Vacio, Insignia, Saldo } from '../ui.jsx';
 
 // ---- Filtro de fechas reutilizable (presets + fechas manuales) ----
@@ -98,17 +98,25 @@ export function Reportes() {
               <TituloSeccion>Por cobrar ahora ({datos.deudores.length})</TituloSeccion>
               <ul className="divide-y divide-slate-100 text-sm">
                 {datos.deudores.map(d => (
-                  <li key={d.alquiler_id}>
-                    <a href={`#/alquiler/${d.alquiler_id}`} className="flex items-center justify-between py-2.5 hover:bg-slate-50 -mx-2 px-2 rounded-lg">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <AlertCircle size={16} className="text-amber-500 shrink-0" />
-                        <div className="min-w-0">
-                          <div className="font-medium text-slate-700 truncate">{d.cliente_nombre}</div>
-                          <div className="text-xs text-slate-400">desde el {fechaCorta(d.fecha_inicio)}{d.cliente_telefono && ` · ${d.cliente_telefono}`}</div>
-                        </div>
+                  <li key={d.alquiler_id} className="flex items-center justify-between gap-2 py-2.5">
+                    <a href={`#/alquiler/${d.alquiler_id}`} className="flex items-center gap-2 min-w-0 flex-1 hover:bg-slate-50 -mx-2 px-2 rounded-lg">
+                      <AlertCircle size={16} className="text-amber-500 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-medium text-slate-700 truncate">{d.cliente_nombre}</div>
+                        <div className="text-xs text-slate-400">desde el {fechaCorta(d.fecha_inicio)}{d.cliente_telefono && ` · ${d.cliente_telefono}`}</div>
                       </div>
-                      <Saldo valor={d.saldo} />
                     </a>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Saldo valor={d.saldo} />
+                      {d.cliente_telefono && (
+                        <a target="_blank" rel="noreferrer" title="Recordar la deuda por WhatsApp"
+                          href={enlaceWhatsApp(d.cliente_telefono,
+                            `Hola ${d.cliente_nombre}, le saluda ${datos.negocio}. Le recordamos que su alquiler iniciado el ${fechaCorta(d.fecha_inicio)} tiene un saldo pendiente de ${dinero(d.saldo)}. ¡Gracias!`)}
+                          className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg">
+                          <MessageCircle size={17} />
+                        </a>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -116,7 +124,18 @@ export function Reportes() {
           )}
 
           <Tarjeta>
-            <TituloSeccion>Ingresos por mes</TituloSeccion>
+            <TituloSeccion
+              extra={datos.por_mes.length > 0 ? (
+                <button title="Descargar para Excel"
+                  onClick={() => descargarCSV('ingresos-por-mes.csv',
+                    ['Mes', 'Total cobrado', 'Pagos'],
+                    datos.por_mes.map(m => [m.mes, (m.total / 100).toFixed(2), m.pagos]))}
+                  className="flex items-center gap-1 text-xs font-medium text-blue-700 hover:bg-blue-50 px-2 py-1.5 rounded-lg">
+                  <Download size={14} /> Excel
+                </button>
+              ) : null}>
+              Ingresos por mes
+            </TituloSeccion>
             {datos.por_mes.length === 0 ? (
               <Vacio>No hay pagos en este período.</Vacio>
             ) : (
@@ -149,7 +168,20 @@ export function Reportes() {
           )}
 
           <Tarjeta>
-            <TituloSeccion>Pagos del período</TituloSeccion>
+            <TituloSeccion
+              extra={datos.ultimos_pagos.length > 0 ? (
+                <button title="Descargar para Excel"
+                  onClick={() => descargarCSV(
+                    `pagos-${rango.desde || 'inicio'}-a-${rango.hasta || hoyISO()}.csv`,
+                    ['Fecha', 'Cliente', 'Monto', 'Nota', 'Registrado por', 'Alquiler'],
+                    datos.ultimos_pagos.map(p => [p.fecha, p.cliente_nombre, (p.monto / 100).toFixed(2), p.nota || '', p.usuario_nombre || '', p.alquiler_id])
+                  )}
+                  className="flex items-center gap-1 text-xs font-medium text-blue-700 hover:bg-blue-50 px-2 py-1.5 rounded-lg">
+                  <Download size={14} /> Excel
+                </button>
+              ) : null}>
+              Pagos del período
+            </TituloSeccion>
             {datos.ultimos_pagos.length === 0 ? (
               <Vacio>Sin pagos en este período.</Vacio>
             ) : (

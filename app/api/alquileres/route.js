@@ -1,6 +1,6 @@
 import { todas, ejecutar, leerConfig } from '../../../lib/db.js';
 import { conSesion } from '../../../lib/auth.js';
-import { hoyLocal, calcularVarios } from '../../../lib/calculos.js';
+import { hoyLocal, calcularVarios, inventarioTotal, unidadesFuera } from '../../../lib/calculos.js';
 
 export const GET = conSesion(async (request) => {
   const hoy = hoyLocal();
@@ -28,14 +28,9 @@ export const GET = conSesion(async (request) => {
 
 export const POST = conSesion(async (request, contexto, usuario) => {
   const c = await request.json();
-  let clienteId = Number(c.cliente_id) || null;
-  if (!clienteId && c.cliente) {
-    if (!c.cliente.nombre?.trim()) return Response.json({ error: 'El nombre del cliente es obligatorio' }, { status: 400 });
-    const r = await ejecutar('INSERT INTO clientes (nombre, cedula, telefono, direccion) VALUES (?, ?, ?, ?)',
-      c.cliente.nombre.trim(), c.cliente.cedula || '', c.cliente.telefono || '', c.cliente.direccion || '');
-    clienteId = r.lastInsertRowid;
+  if (!Number(c.cliente_id) && !c.cliente?.nombre?.trim()) {
+    return Response.json({ error: 'Falta el cliente' }, { status: 400 });
   }
-  if (!clienteId) return Response.json({ error: 'Falta el cliente' }, { status: 400 });
 
   const cfg = await leerConfig();
   const precios = { andamio: Number(cfg.precio_andamio), tablon: Number(cfg.precio_tablon) };
@@ -43,6 +38,33 @@ export const POST = conSesion(async (request, contexto, usuario) => {
     .map(i => ({ tipo: i.tipo === 'andamio' ? 'andamio' : 'tablon', cantidad: Math.floor(Number(i.cantidad) || 0), prestamo: !!i.prestamo }))
     .filter(i => i.cantidad > 0);
   if (!items.length) return Response.json({ error: 'Agrega al menos un andamio o tablón' }, { status: 400 });
+
+  // Aviso de inventario (solo si el inventario está registrado); se puede
+  // continuar igual confirmando, por si el inventario está desactualizado
+  if (!c.forzar) {
+    const total = await inventarioTotal();
+    const fuera = await unidadesFuera();
+    for (const tipo of ['andamio', 'tablon']) {
+      const pedida = items.filter(i => i.tipo === tipo).reduce((s, i) => s + i.cantidad, 0);
+      const disponibles = total[tipo] - fuera[tipo];
+      if (pedida > 0 && total[tipo] > 0 && pedida > disponibles) {
+        const nombre = tipo === 'andamio' ? 'andamio(s)' : 'tablón(es)';
+        return Response.json({
+          error: `Según el inventario solo hay ${Math.max(disponibles, 0)} ${nombre} disponibles`,
+          puede_forzar: true
+        }, { status: 409 });
+      }
+    }
+  }
+
+  // Recién aquí se crea el cliente nuevo (después de validar todo lo demás,
+  // para que un reintento no lo duplique)
+  let clienteId = Number(c.cliente_id) || null;
+  if (!clienteId) {
+    const rc = await ejecutar('INSERT INTO clientes (nombre, cedula, telefono, direccion) VALUES (?, ?, ?, ?)',
+      c.cliente.nombre.trim(), c.cliente.cedula || '', c.cliente.telefono || '', c.cliente.direccion || '');
+    clienteId = rc.lastInsertRowid;
+  }
 
   const fecha = c.fecha_inicio || hoyLocal();
   const r = await ejecutar(`INSERT INTO alquileres (cliente_id, fecha_inicio, cobra_sabado, cobrar_primer_dia, garantia, direccion_obra, notas, creado_por)

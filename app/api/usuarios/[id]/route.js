@@ -1,5 +1,6 @@
 import { una, ejecutar } from '../../../../lib/db.js';
 import { conSesion } from '../../../../lib/auth.js';
+import { hashPin } from '../../../../lib/pines.js';
 
 export const PUT = conSesion(async (request, contexto) => {
   const { id } = await contexto.params;
@@ -14,6 +15,6 @@ export const PUT = conSesion(async (request, contexto) => {
     if (activos <= 1 && u.activo) return Response.json({ error: 'Debe quedar al menos un usuario activo' }, { status: 400 });
   }
   await ejecutar('UPDATE usuarios SET nombre = ?, pin = ?, activo = ? WHERE id = ?',
-    nombre?.trim() || u.nombre, (pin && pin !== '') ? pin : u.pin, activo === undefined ? u.activo : (activo ? 1 : 0), Number(id));
+    nombre?.trim() || u.nombre, (pin && pin !== '') ? hashPin(pin) : u.pin, activo === undefined ? u.activo : (activo ? 1 : 0), Number(id));
   return Response.json({ ok: true });
 });

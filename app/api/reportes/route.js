@@ -1,4 +1,4 @@
-import { todas, una } from '../../../lib/db.js';
+import { todas, una, leerConfig } from '../../../lib/db.js';
 import { conSesion } from '../../../lib/auth.js';
 import { hoyLocal, calcularVarios } from '../../../lib/calculos.js';
 
@@ -61,6 +61,7 @@ export const GET = conSesion(async (request) => {
     ORDER BY p.fecha DESC, p.id DESC LIMIT 50`, ...rp.args);
 
   return Response.json({
+    negocio: (await leerConfig()).negocio_nombre,
     por_mes: porMes,
     totales: {
       cobrado: cobrado.total, pagos: cobrado.n,

@@ -4,3 +4,4 @@ node_modules/
 !.env.ejemplo
 datos-local.db*
 .vercel
+pruebas-*.db*
