@@ -1,6 +1,6 @@
 // Detalle de un alquiler: cuenta, devoluciones parciales, pagos, descuento, cierre y pagaré
 import { useCallback, useEffect, useState } from 'react';
-import { FileText, Undo2, BadgeDollarSign, Percent, Lock, Unlock, Printer, Pencil } from 'lucide-react';
+import { FileText, Undo2, BadgeDollarSign, Percent, Lock, Unlock, Printer, Pencil, X } from 'lucide-react';
 import { api, dinero, fechaCorta, nombreTipo, hoyISO } from '../api.js';
 import {
   Tarjeta, TituloSeccion, Boton, Campo, Entrada, Interruptor, Modal,
@@ -39,6 +39,17 @@ export default function Alquiler({ id }) {
       aviso(err.message, 'error');
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const anularDevolucion = async (d, tipo) => {
+    if (!window.confirm(`¿Anular la devolución de ${d.cantidad} ${nombreTipo(tipo, d.cantidad)} del ${fechaCorta(d.fecha)}? Las piezas volverán a contar como afuera.`)) return;
+    try {
+      await api(`/alquileres/${id}/anular-devolucion`, { method: 'POST', body: { devolucion_id: d.id } });
+      aviso('Devolución anulada ✔');
+      cargar();
+    } catch (err) {
+      aviso(err.message, 'error');
     }
   };
 
@@ -143,12 +154,20 @@ export default function Alquiler({ id }) {
               {it.devoluciones.length > 0 && (
                 <ul className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 space-y-1">
                   {it.devoluciones.map(d => (
-                    <li key={d.id}>
-                      ↩ {d.cantidad} {nombreTipo(it.tipo, d.cantidad)} el {fechaCorta(d.fecha)} — {d.dias} día{d.dias !== 1 && 's'}
-                      {d.cobrar_hasta && ` (cobrado hasta el ${fechaCorta(d.cobrar_hasta)})`}
-                      {!d.cobrar_ultimo_dia && ' (sin cobrar el último día)'}
-                      {it.precio_dia > 0 && <> = {dinero(d.subtotal)}</>}
-                      {d.usuario_nombre && <span className="text-slate-300"> · {d.usuario_nombre}</span>}
+                    <li key={d.id} className="flex items-center justify-between gap-2">
+                      <span>
+                        ↩ {d.cantidad} {nombreTipo(it.tipo, d.cantidad)} el {fechaCorta(d.fecha)} — {d.dias} día{d.dias !== 1 && 's'}
+                        {d.cobrar_hasta && ` (cobrado hasta el ${fechaCorta(d.cobrar_hasta)})`}
+                        {!d.cobrar_ultimo_dia && ' (sin cobrar el último día)'}
+                        {it.precio_dia > 0 && <> = {dinero(d.subtotal)}</>}
+                        {d.usuario_nombre && <span className="text-slate-300"> · {d.usuario_nombre}</span>}
+                      </span>
+                      {!cerrado && (
+                        <button onClick={() => anularDevolucion(d, it.tipo)} title="Anular esta devolución"
+                          className="shrink-0 text-red-400 hover:text-red-600 hover:bg-red-50 p-1 rounded-lg">
+                          <X size={14} />
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
