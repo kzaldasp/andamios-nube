@@ -1,4 +1,4 @@
-import { una } from '../../../../lib/db.js';
+import { una, ejecutar } from '../../../../lib/db.js';
 import { conSesion } from '../../../../lib/auth.js';
 import { hoyLocal, calcularAlquiler } from '../../../../lib/calculos.js';
 
@@ -16,4 +16,14 @@ export const GET = conSesion(async (request, contexto) => {
   if (!alq) return Response.json({ error: 'Alquiler no encontrado' }, { status: 404 });
   const calc = await calcularAlquiler(alq, hoyLocal());
   return Response.json({ ...alq, ...calc, hoy: hoyLocal() });
+});
+
+export const PUT = conSesion(async (request, contexto) => {
+  const { id } = await contexto.params;
+  const { cobrar_primer_dia, cobra_sabado } = await request.json();
+  await ejecutar(
+    'UPDATE alquileres SET cobrar_primer_dia = ?, cobra_sabado = ? WHERE id = ?',
+    [cobrar_primer_dia ? 1 : 0, cobra_sabado ? 1 : 0, Number(id)]
+  );
+  return Response.json({ ok: true });
 });

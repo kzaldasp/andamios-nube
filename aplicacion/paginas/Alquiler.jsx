@@ -1,6 +1,6 @@
 // Detalle de un alquiler: cuenta, devoluciones parciales, pagos, descuento, cierre y pagaré
 import { useCallback, useEffect, useState } from 'react';
-import { FileText, Undo2, BadgeDollarSign, Percent, Lock, Unlock, Printer } from 'lucide-react';
+import { FileText, Undo2, BadgeDollarSign, Percent, Lock, Unlock, Printer, Pencil } from 'lucide-react';
 import { api, dinero, fechaCorta, nombreTipo, hoyISO } from '../api.js';
 import {
   Tarjeta, TituloSeccion, Boton, Campo, Entrada, Interruptor, Modal,
@@ -75,10 +75,17 @@ export default function Alquiler({ id }) {
               )}
             </div>
           </div>
-          <a href={`/imprimir/pagare/${alq.id}`} target="_blank" rel="noreferrer"
-            className="flex flex-col items-center gap-1 text-blue-700 text-xs font-medium shrink-0 p-2 rounded-xl hover:bg-blue-50">
-            <FileText size={22} /> Pagaré
-          </a>
+          <div className="flex gap-1 shrink-0">
+            <button onClick={() => abrir('condiciones', { cobrar_primer_dia: !!alq.cobrar_primer_dia, cobra_sabado: !!alq.cobra_sabado })}
+              className="flex flex-col items-center gap-1 text-slate-500 text-xs font-medium p-2 rounded-xl hover:bg-slate-100"
+              title="Editar condiciones de cobro">
+              <Pencil size={20} /> Editar
+            </button>
+            <a href={`/imprimir/pagare/${alq.id}`} target="_blank" rel="noreferrer"
+              className="flex flex-col items-center gap-1 text-blue-700 text-xs font-medium p-2 rounded-xl hover:bg-blue-50">
+              <FileText size={22} /> Pagaré
+            </a>
+          </div>
         </div>
         {alq.notas && <p className="text-sm text-slate-500 mt-3 border-t border-slate-100 pt-3">📝 {alq.notas}</p>}
         {alq.creado_por_nombre && (
@@ -271,6 +278,33 @@ export default function Alquiler({ id }) {
         <Boton className="w-full mt-3" cargando={guardando}
           onClick={() => ejecutar('descuento', { monto: Number(form.monto) || 0 }, 'Descuento aplicado ✔')}>
           Guardar descuento
+        </Boton>
+      </Modal>
+
+      <Modal titulo="Condiciones de cobro" abierto={modal === 'condiciones'} onCerrar={() => setModal(null)}>
+        <Interruptor marcado={!!form.cobrar_primer_dia}
+          onChange={v => setForm({ ...form, cobrar_primer_dia: v })}
+          etiqueta="Cobrar el día en que se llevan las piezas"
+          descripcion="Apágalo si acordaron que el primer día no se cuenta." />
+        <Interruptor marcado={!!form.cobra_sabado}
+          onChange={v => setForm({ ...form, cobra_sabado: v })}
+          etiqueta="Cobrar los sábados"
+          descripcion="Los domingos nunca se cobran." />
+        <Boton className="w-full mt-4" cargando={guardando}
+          onClick={async () => {
+            setGuardando(true);
+            try {
+              await api(`/alquileres/${id}`, { method: 'PUT', body: { cobrar_primer_dia: form.cobrar_primer_dia, cobra_sabado: form.cobra_sabado } });
+              aviso('Condiciones actualizadas ✔');
+              setModal(null);
+              cargar();
+            } catch (err) {
+              aviso(err.message, 'error');
+            } finally {
+              setGuardando(false);
+            }
+          }}>
+          Guardar cambios
         </Boton>
       </Modal>
 
