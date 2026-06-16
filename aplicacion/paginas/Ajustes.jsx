@@ -27,7 +27,7 @@ export function AyudaMarcadores({ marcadores }) {
 }
 
 // La config guarda dinero en centavos; aquí se edita en dólares
-const CAMPOS_DINERO = ['precio_andamio', 'precio_tablon', 'reposicion_andamio', 'reposicion_tablon'];
+const CAMPOS_DINERO = ['precio_andamio', 'precio_tablon'];
 
 export default function Ajustes({ alRecargarSesion }) {
   const aviso = useAviso();
@@ -123,12 +123,6 @@ export default function Ajustes({ alRecargarSesion }) {
         <div className="grid grid-cols-2 gap-x-4">
           <Campo etiqueta="Andamio"><Entrada type="number" step="0.01" min="0" {...campo('precio_andamio')} /></Campo>
           <Campo etiqueta="Tablón"><Entrada type="number" step="0.01" min="0" {...campo('precio_tablon')} /></Campo>
-        </div>
-        <TituloSeccion>Valor de reposición (para el pagaré)</TituloSeccion>
-        <p className="text-xs text-slate-400 -mt-2 mb-3">Lo que debe pagar el cliente si no devuelve o daña la pieza.</p>
-        <div className="grid grid-cols-2 gap-x-4">
-          <Campo etiqueta="Andamio"><Entrada type="number" step="0.01" min="0" {...campo('reposicion_andamio')} /></Campo>
-          <Campo etiqueta="Tablón"><Entrada type="number" step="0.01" min="0" {...campo('reposicion_tablon')} /></Campo>
         </div>
       </Tarjeta>
 

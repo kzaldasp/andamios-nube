@@ -15,9 +15,10 @@ await ejecutar(`INSERT INTO pagos (alquiler_id, monto, fecha, nota) VALUES (1, 1
 
 test('pagaré con formato por defecto', async () => {
   const html = await paginaPagare(1);
-  for (const t of ['PAGARÉ POR ALQUILER', 'Juan Pérez', '1712345678', 'Av. Siempre Viva 123', '<table>', 'EL CLIENTE', 'Enviar por WhatsApp']) {
+  for (const t of ['PAGARÉ POR ALQUILER', 'Juan Pérez', '1712345678', 'Av. Siempre Viva 123', 'cada cuadro de andamio', 'EL CLIENTE', 'Enviar por WhatsApp']) {
     assert.ok(html.includes(t), `falta: ${t}`);
   }
+  assert.ok(!html.includes('<table>'), 'ya no debe haber tabla con totales en el pagaré');
   assert.ok(!html.includes('Observaciones'), 'la línea sin datos debió omitirse');
   assert.ok(!html.includes('{{'), 'quedó un marcador sin reemplazar');
 });
