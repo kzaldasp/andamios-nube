@@ -1,7 +1,7 @@
 // Detalle de un alquiler: cuenta, devoluciones parciales, pagos, descuento, cierre y pagaré
 import { useCallback, useEffect, useState } from 'react';
-import { FileText, Undo2, BadgeDollarSign, Percent, Lock, Unlock, Printer, Pencil, X, FileCog, Eye, PlusCircle, Trash2 } from 'lucide-react';
-import { api, abrirPreviaPlantilla, dinero, fechaCorta, nombreTipo, hoyISO, navegar } from '../api.js';
+import { FileText, Undo2, BadgeDollarSign, Percent, Lock, Unlock, Printer, Pencil, X, FileCog, Eye, PlusCircle, Trash2, CalendarDays } from 'lucide-react';
+import { api, abrirPreviaPlantilla, dinero, fechaCorta, nombreTipo, hoyISO, navegar, proyectarSaldo } from '../api.js';
 import {
   Tarjeta, TituloSeccion, Boton, Campo, Entrada, AreaTexto, Interruptor, Modal,
   Cargando, Vacio, Insignia, Saldo, useAviso
@@ -136,6 +136,11 @@ export default function Alquiler({ id }) {
               title="Formato de los documentos de este alquiler">
               <FileCog size={20} /> Formato
             </button>
+            <a href={`/imprimir/calendario/${alq.id}`} target="_blank" rel="noreferrer"
+              className="flex flex-col items-center gap-1 text-blue-700 text-xs font-medium p-2 rounded-xl hover:bg-blue-50"
+              title="Ver el cobro día por día en calendario (imprimible)">
+              <CalendarDays size={22} /> Calendario
+            </a>
             <a href={`/imprimir/pagare/${alq.id}`} target="_blank" rel="noreferrer"
               className="flex flex-col items-center gap-1 text-blue-700 text-xs font-medium p-2 rounded-xl hover:bg-blue-50">
               <FileText size={22} /> Pagaré
@@ -342,6 +347,17 @@ export default function Alquiler({ id }) {
         <Campo etiqueta="Fecha del pago">
           <Entrada type="date" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })} />
         </Campo>
+        {(() => {
+          const sug = proyectarSaldo(alq, form.fecha || alq.hoy, true).saldo;
+          if (sug <= 0) return null;
+          return (
+            <div className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 -mt-1 mb-3 flex items-center justify-between gap-2">
+              <span>Debería pagar hasta el {fechaCorta(form.fecha || alq.hoy)}: <strong className="text-slate-800">{dinero(sug)}</strong></span>
+              <button type="button" onClick={() => setForm({ ...form, monto: (sug / 100).toFixed(2) })}
+                className="shrink-0 text-blue-700 font-medium hover:underline">Usar</button>
+            </div>
+          );
+        })()}
         <Campo etiqueta="Nota (opcional)">
           <Entrada placeholder="Ej: abono, pago final…" value={form.nota ?? ''}
             onChange={e => setForm({ ...form, nota: e.target.value })} />
@@ -601,7 +617,32 @@ export default function Alquiler({ id }) {
               descripcion="Aplica a las piezas que se devuelven con el cierre." />
           </>
         )}
-        <p className="text-xs text-slate-400 mt-2">Al cerrar se marca la garantía como devuelta al cliente.</p>
+        {(() => {
+          const fechaCierre = form.fecha || alq.hoy;
+          const hastaCobro = form.cobrar_hasta || fechaCierre;
+          const proy = proyectarSaldo(alq, hastaCobro, form.cobrar_ultimo_dia !== false);
+          const etiqueta = proy.saldo > 0 ? 'Quedaría debiendo' : proy.saldo < 0 ? 'Vuelto al cliente' : 'Cuenta saldada';
+          return (
+            <div className="text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 mt-3 space-y-1">
+              <div className="text-slate-600 flex justify-between">
+                <span>Cargo total al cerrar</span><strong className="text-slate-800">{dinero(proy.cargo_total)}</strong>
+              </div>
+              {alq.descuento > 0 && (
+                <div className="text-amber-600 flex justify-between"><span>Descuento</span><span>−{dinero(alq.descuento)}</span></div>
+              )}
+              <div className="text-slate-600 flex justify-between">
+                <span>Pagado</span><strong className="text-slate-800">{dinero(alq.pagado)}</strong>
+              </div>
+              <div className="flex justify-between border-t border-slate-200 pt-1 mt-1 font-semibold">
+                <span className="text-slate-500">{etiqueta}</span>
+                <span className={proy.saldo > 0 ? 'text-red-600' : proy.saldo < 0 ? 'text-emerald-600' : 'text-slate-700'}>
+                  {dinero(Math.abs(proy.saldo))}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
+        <p className="text-xs text-slate-400 mt-2">Cálculo de guía: el monto definitivo se confirma al cerrar. Al cerrar se marca la garantía como devuelta al cliente.</p>
         <Boton className="w-full mt-3" cargando={guardando}
           onClick={() => ejecutar('cerrar', {
             fecha: form.fecha, cobrar_hasta: form.cobrar_hasta || '',
